@@ -7,22 +7,21 @@ import oa.as.*;
 class NacTest 
 {
 	//Current Device specific settings
+	private static final String CURR_CXS_IP = "10.1.40.100";
 	private static final String CURR_NAC_IP = "10.0.40.83";
-	
 	private static final String CURR_NAC_LOC_ID = "040";
 	private static final String CURR_NAC_DEV_INDEX = "083";
-
-	//private static final String CURR_NAC_LOC_NAME = "";
 	private static final String CURR_NAC_DEV_NAME = "OANC01";
-	private static final String CURR_NAC_DIC_VER = "2";
 	
-	//Current Software 
-	private static final String CURR_SW_REV = "22900";
+	private static final String DEV_CLASS = "NETWORK_AUDIO_CONTROLLER";
+	//private static final String CURR_NAC_LOC_NAME = "";
 	
-	//Number of soucres and sinks
+	
+	//Number of sources and sinks
 	private static final int CURR_DEV_SRC_COUNT = 5;
 	private static final int CURR_DEV_SNK_COUNT = 8;
 	
+	//Default gain
 	private static final double DEF_GAIN = -80.00;
 	
 	@Test
@@ -36,7 +35,7 @@ class NacTest
 		
 		StringArray address = new StringArray();	//serverAddresses parameter
 		
-		address.add("10.1.40.100");
+		address.add(CURR_CXS_IP);
 		
 		KeyValueMap connecParam = new KeyValueMap();	//config parameter 
 		
@@ -58,9 +57,9 @@ class NacTest
 			}
 		}
 		
-		
 		DeviceStateArray devices = new DeviceStateArray();
-		Device d = new Device(); 
+		Device c = new Device(); //CXS
+		Device d = new Device(); //test device
 		DeviceModel m = new DeviceModel(); 
 		
 		int timeout = 0; 
@@ -76,13 +75,17 @@ class NacTest
 					d = devices.get(i);
 					
 					//System.out.println(m.getName());
-					//System.out.println("Name: " + d.getName() + " State: " + d.getState());
-					if (d.getIP().equals(CURR_NAC_IP)) 
+					//System.out.println("Name: " + d.getName() + " State: " + d.getState());	
+					if (d.getIP().equals(CURR_CXS_IP)) //retrieve CXS
+					{
+						c = d;
+					}
+					
+					if (d.getIP().equals(CURR_NAC_IP)) //retrieve test device
 					{
 						m = d.getDeviceModel(); 
 						break;
 					}
-					
 				}
 				break;
 			}
@@ -97,31 +100,86 @@ class NacTest
 			catch (InterruptedException e) { }
 		}
 		 
-
+		
+		
+		//Possible setup of device
+		
+		//1. test dictionary update
+			//initiate update through CXS
+			//check resultant dictionary version on device
+			
+		
+		//System.out.println("CXS dictionary version is: " + as.getDictionaryChangeset().isEmpty());
+		
+		
+		
+		//Check device attributes - pre-set attributes
 		System.out.println("Checking device attributes");
 		assertEquals(CURR_NAC_LOC_ID,d.getLocationId()); 
 		assertEquals(CURR_NAC_DEV_INDEX, d.getDeviceIndex());
-		
-		String dest = Integer.toString(d.getDstNo());
-		
-		assertEquals("2"+ CURR_NAC_LOC_ID + CURR_NAC_DEV_INDEX, Integer.toString(d.getDstNo()));
-
-		//assertEquals( ,d.getLocationName());
 		assertEquals(CURR_NAC_DEV_NAME, d.getName());
+		assertEquals(DEV_CLASS, d.getDeviceClass().name());
 		
-		assertEquals(CURR_NAC_DIC_VER, Long.toString(d.getDictionaryVersion()));
-		assertEquals(CURR_SW_REV, d.getSoftwareRevision());
+		String dest = Integer.toString(d.getDstNo());	
+		assertEquals("2"+ CURR_NAC_LOC_ID + CURR_NAC_DEV_INDEX, Integer.toString(d.getDstNo()));
+		
+		//Check device attributes - against CXS
+		assertEquals(c.getDictionaryVersion(), d.getDictionaryVersion());
+		assertEquals(c.getSoftwareRevision(), d.getSoftwareRevision());
 		
 		
-		//Check Device model class 
+		//Check Device Model class 
+		//NOT FUNCTIONING
 		System.out.println("Checking device input and output");			
-		
 		System.out.println("NAC model name is: " + m.getName());
 		System.out.println("NAC digital inputs: " + m.getDigitalInputCount());
 		System.out.println("NAC digital outputs: " + m.getDigitalOutputCount());
 		System.out.println("NAC audio outputs: " + m.getAudioOutputChannels());
 		
-			
+		
+		
+		//Check device Digital input/output setting/getting
+
+		//Digital inputs
+		for(int i=1; i<= m.getDigitalInputCount(); i++) {
+			assertEquals(false, d.getInputState(i));
+		}
+		
+		//Set digital outputs
+		for(int i=1; i<=m.getDigitalOutputCount(); i++ ) {
+			assertEquals(false, d.getOutputState(i));
+			d.setOutputState(i, 1);
+			try { Thread.sleep(500); }
+			catch (InterruptedException e) { }
+		}
+		//refresh device states 
+
+		while(true) 
+		{
+			devices = as.getDeviceStates();
+			if (devices.size() > 0)// && !devices.get(0).getDeviceModel().getName().equals("Unknown")) 
+			{
+				for(int i = 0; i < devices.size();i++) //find our device by IP
+				{
+					d = devices.get(i);				
+					if (d.getIP().equals(CURR_NAC_IP)) //retrieve test device
+					{
+						break;
+					}
+				}
+				break;
+			}
+			try { Thread.sleep(3000); }
+			catch (InterruptedException e) { }
+		}
+		
+		//Un-set digital outputs
+		for(int i=1; i<=m.getDigitalOutputCount(); i++ ) {
+			assertEquals(true, d.getOutputState(i)); //confirm set successfully
+			d.setOutputState(i, 2);
+			try { Thread.sleep(500); }
+			catch (InterruptedException e) { }
+		}
 		
 		//PA Controller 
 		PAController pac = new PAController(); 
@@ -135,7 +193,7 @@ class NacTest
 		paSourceList = pac.getPaSources();
 		paSinkList = pac.getPaSinks();
 		
-		//check local device sources and sinks
+		//counters for checking local device sources and sinks
 		int sourceCount = 0;
 		int sinkCount = 0;
 		
@@ -143,6 +201,7 @@ class NacTest
 		Gain sinkGain = new Gain(); 
 		sinkGain.setLevel(DEF_GAIN);
 		
+		//setup test announcement for playback on sinks
 		
 		
 		//Show all sources
@@ -170,8 +229,9 @@ class NacTest
 				
 				//System.out.println("gain level is: " + paSink.getGain().getLevel());
 				//Test setting gain 
-				paSink.setOutputGain(sinkGain);;
+				paSink.setOutputGain(sinkGain);
 				assertEquals(paSink.getGain().getLevel(), DEF_GAIN);
+				
 				
 			}
 		}
