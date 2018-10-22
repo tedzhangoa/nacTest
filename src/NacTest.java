@@ -125,7 +125,7 @@ class NacTest
 		
 	//Check device attributes - against CXS
 		assertEquals(c.getDictionaryVersion(), d.getDictionaryVersion());
-		//assertEquals(c.getSoftwareRevision(), d.getSoftwareRevision());
+		assertEquals(c.getSoftwareRevision(), d.getSoftwareRevision());
 		
 		
 	//Check Device Model class 
@@ -221,14 +221,18 @@ class NacTest
 		
 		//setup test announcement for playback on sinks
 		
-		int dictionaryId = 100000; //single dictionary item
 		NumberArray dvaItems = new NumberArray();
-		dvaItems.add(dictionaryId);
+		dvaItems.clear();
+		dvaItems.add(99001);
+		dvaItems.add(99200);
 		
 		StringArray outputZoneList = new StringArray();
+		outputZoneList.clear();
+		
 		StringArray outputVisualList = new StringArray();
+		//outputVisualList.clear();
 		
-		
+		outputZoneList.add("Test");
 		//Testing zones
 		PaZoneArray paZoneList = new PaZoneArray();
 		PaZone zone = new PaZone(); 
@@ -239,14 +243,22 @@ class NacTest
 			zone = paZoneList.get(i);
 			if (zone.getId().contains("Test/Test"))
 			{
-				outputZoneList.add(zone.getId());
+				//outputZoneList.add(zone.getId());
+				System.out.println(zone.getId());
 			}
 		}
 		
 		//Play out to all relevant zones
-		pac.playMessage(outputZoneList, outputVisualList, sinkGain, dvaItems, null, false, true, 0, 0, 0);
+		//sinkGain.setLevel(0);
+		Gain gain = new Gain();
+		String text = null;
 		
+		System.out.println("number of outputs " + outputZoneList.size() + "number of dictionary items " + dvaItems.size());
 		
+		System.out.println(pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, text, false, false, 0, 0, 0));
+		
+		try { Thread.sleep(10000); }
+		catch (InterruptedException e) { }
 		
 		as.disconnect(); 
 	}
