@@ -14,13 +14,18 @@ class NacTest
 	private static final String DEV_CLASS = "NETWORK_AUDIO_CONTROLLER";
 	//private static final String CURR_NAC_LOC_NAME = "";
 	
+	//Model specific settings
+	private static final String CONAC02_MODEL = "CONAC02/4000:UFM";
+	private static final int CONAC02_DIN = 8;
+	private static final int CONAC02_DOUT = 8;
+	private static final int CONAC02_AOUT = 4;
 	
 	//Number of sources and sinks
-	private static final int CURR_DEV_SRC_COUNT = 5;
+	//private static final int CURR_DEV_SRC_COUNT = 5;
 	private static final int CURR_DEV_SNK_COUNT = 8;
 	
 	//Default gain
-	private static final double DEF_GAIN = -80.00;
+	private static final double DEF_GAIN = -60.00;
 	
 	@Test
 	void test() 
@@ -37,8 +42,8 @@ class NacTest
 		
 		KeyValueMap connecParam = new KeyValueMap();	//config parameter 
 		
-		connecParam.set("NETSPIRE_SDK_SOCKET_PORT", "20002"); 
-		connecParam.set("NETSPIRE_SDK_SET_LOG_LEVEL", "0");
+		connecParam.set("NETSPIRE_SDK_SOCKET_PORT", "20000"); 
+		//connecParam.set("NETSPIRE_SDK_SET_LOG_LEVEL", "0");
 		
 		AudioServer as = new AudioServer();
 		
@@ -54,6 +59,9 @@ class NacTest
 				break;
 			}
 		}
+		//=========================================================================
+        // connection to audio server is established. idle forever and get devices
+        //=========================================================================
 		
 		DeviceStateArray devices = new DeviceStateArray();
 		Device c = new Device(); //CXS
@@ -65,15 +73,12 @@ class NacTest
 		while(true) 
 		{
 			devices = as.getDeviceStates();
-			//System.out.println("Number of connected devices is " + devices.size());
-			if (devices.size() > 0)// && !devices.get(0).getDeviceModel().getName().equals("Unknown")) 
+			if (devices.size() > 0)
 			{
 				for(int i = 0; i < devices.size();i++) //find our device by IP
 				{
 					d = devices.get(i);
-					
-					//System.out.println(m.getName());
-					//System.out.println("Name: " + d.getName() + " State: " + d.getState());	
+
 					if (d.getIP().equals(CURR_CXS_IP)) //retrieve CXS
 					{
 						c = d;
@@ -108,10 +113,12 @@ class NacTest
 		
 		//2. test dictionary changes on single item
 			
-		
+			
 		//System.out.println("CXS dictionary version is: " + as.getDictionaryChangeset().isEmpty());
 		
-		
+		//=====================================
+        // Test basic device set-up attributes
+        //=====================================
 		
 	//Check device attributes - pre-set attributes
 		System.out.println("Checking device attributes");
@@ -125,48 +132,62 @@ class NacTest
 		
 	//Check device attributes - against CXS
 		assertEquals(c.getDictionaryVersion(), d.getDictionaryVersion());
-		assertEquals(c.getSoftwareRevision(), d.getSoftwareRevision());
+		assertEquals(c.getSoftwareRevision(), d.getSoftwareRevision()); //assuming auto-updated
 		
 		
 	//Check Device Model class 
+		assertEquals(CONAC02_MODEL, m.getName());
+		assertEquals(CONAC02_DIN, m.getDigitalInputCount());
+		assertEquals(CONAC02_DOUT, m.getDigitalOutputCount());
+		assertEquals(CONAC02_AOUT, m.getAudioOutputChannels());
 		
-		System.out.println("Checking device input and output");			
-		System.out.println("NAC model name is: " + m.getName());
-		System.out.println("NAC digital inputs: " + m.getDigitalInputCount());
-		System.out.println("NAC digital outputs: " + m.getDigitalOutputCount());
-		System.out.println("NAC audio outputs: " + m.getAudioOutputChannels());
+		System.out.println("Device attributes okay");
 		
+		//===========================
+        // Test Digital input/output 
+        //===========================
 		
-		
-	//Check device Digital input/output setting/getting
-
+		System.out.println("Checking device digital input/output");
 		//Digital inputs
-		for(int i=1; i<= m.getDigitalInputCount(); i++) {
-			assertEquals(false, d.getInputState(i));
+		for(int i=1; i<= m.getDigitalInputCount(); i++) 
+		{
+			assertEquals(false, d.getInputState(i)); //should be un-set by default 
 		}
 		
 		//Set digital outputs
-		for(int i=1; i<=m.getDigitalOutputCount(); i++ ) {
+		for(int i=1; i<=m.getDigitalOutputCount(); i++ ) 
+		{
 			assertEquals(false, d.getOutputState(i));
 			d.setOutputState(i, 1);
-			try { Thread.sleep(500); }
+			try { Thread.sleep(300); }
 			catch (InterruptedException e) { }
 		}
 		//refresh device states 
+		try { Thread.sleep(2000); }
+		catch (InterruptedException e) { }
 		d = refreshDevice(as); 
 
 		//Un-set digital outputs
-		for(int i=1; i<=m.getDigitalOutputCount(); i++ ) {
+		for(int i=1; i<=m.getDigitalOutputCount(); i++ ) 
+		{
 			assertEquals(true, d.getOutputState(i)); //confirm set successfully
 			d.setOutputState(i, 2);
-			try { Thread.sleep(500); }
+			try { Thread.sleep(300); }
 			catch (InterruptedException e) { }
 		}
+		
 		//refresh device states
+		try { Thread.sleep(2000); }
+		catch (InterruptedException e) { }
 		d = refreshDevice(as);
 		
-	//PA Controller testing
+		System.out.println("Digital input/output okay");
+		
+		//=====================================
+        // Test PA System - Sources and Sinks
+        //=====================================
 		PAController pac = new PAController(); 
+		
 		PaSourceArray paSourceList = new PaSourceArray();
 		PaSource paSource = new PaSource();
 		
@@ -174,10 +195,8 @@ class NacTest
 		PaSink paSink = new PaSink();
 		
 		pac = as.getPAController();
-		paSourceList = pac.getPaSources();
-		paSinkList = pac.getPaSinks();
 		
-		//counters for checking local device sources and sinks
+		//counters checking local device sources and sinks
 		int sourceCount = 0;
 		int sinkCount = 0;
 		
@@ -185,39 +204,79 @@ class NacTest
 		Gain sinkGain = new Gain(); 
 		sinkGain.setLevel(DEF_GAIN);
 		
-		//Show all sources
-		for(int i=0; i < paSourceList.size(); i++) 
+		System.out.println("Testing audio sinks and sources");
+		
+		//Sources 
+		for(int a=0; a<=1; a++) 
 		{
-			paSource = paSourceList.get(i);
-			if(Integer.toString(paSource.getId()).contains(dest)) //partial matching device sources
+			paSourceList = pac.getPaSources(); //refresh source list to get new gains
+			
+			for(int i=0; i < paSourceList.size(); i++) 
 			{
-				System.out.println("PA Source ID is: " + paSource.getId());
-				sourceCount++;
+				paSource = paSourceList.get(i);
+				if(Integer.toString(paSource.getId()).contains(dest)) //partial matching device sources
+				{
+					assertEquals(CURR_NAC_IP, paSource.getIpAddress());
+					if(paSource.getType().name().equals("NETSPIRE_ANALOG_INPUT")) //only count analog outs 
+					{
+						if (a==0) 
+						{
+							sourceCount++;
+							paSource.setGain(DEF_GAIN, true, false);
+		
+							try { Thread.sleep(5000); }
+							catch (InterruptedException e) { }		
+						}
+						else {
+							assertEquals(DEF_GAIN, paSource.getGain());
+						}
+					}
+				}
+			}
+			if (a==0) 
+			{
+				try { Thread.sleep(15000); }  //let gain changes take place
+				catch (InterruptedException e) { }	
 			}
 		}
-		assertEquals(sourceCount, CURR_DEV_SRC_COUNT);
+		assertEquals(sourceCount, CONAC02_AOUT);
 		
-		//Show all sinks
-		for (int i=0; i < paSinkList.size(); i++) 
+		//Sinks
+		for (int a=0; a<=1; a++) 
 		{
-			paSink = paSinkList.get(i);
-			if(Integer.toString(paSink.getId()).contains(dest)) //partial matching device sinks
+			paSinkList = pac.getPaSinks(); //refresh sink list to get new gains
+			for (int i=0; i < paSinkList.size(); i++) 
 			{
-				System.out.println("PA Sink ID is: " + paSink.getId());
-				assertEquals(CURR_NAC_IP, paSink.getIpAddress()); //check IP of each sink against device IP
-				sinkCount++;
-				
-				//System.out.println("gain level is: " + paSink.getGain().getLevel());
-				//Test setting gain 
-				paSink.setOutputGain(sinkGain);
-				assertEquals(paSink.getGain().getLevel(), DEF_GAIN);
-				
+				paSink = paSinkList.get(i);
+				if(Integer.toString(paSink.getId()).contains(dest)) //partial matching device sinks
+				{
+					assertEquals(CURR_NAC_IP, paSink.getIpAddress()); //check IP of each sink against device IP
+					if (a==0) 
+					{
+						sinkCount++;
+						paSink.setGain(sinkGain, true, false);
+						
+						try { Thread.sleep(5000); }
+						catch (InterruptedException e) { }
+					}
+					else 
+					{
+						assertEquals(DEF_GAIN, paSink.getGain().getLevel());
+					}
+				}
+			}
+			if (a==0) 
+			{
+				try { Thread.sleep(15000); }  //let gain changes take place
+				catch (InterruptedException e) { }	
 			}
 		}
 		assertEquals(sinkCount, CURR_DEV_SNK_COUNT);
 		
 		
-	//Test PA on All sinks	
+		//=========================================
+        // Test PA System - Announcement playback
+        //=========================================
 		
 		//setup test announcement for playback on sinks
 		
@@ -227,39 +286,46 @@ class NacTest
 		dvaItems.add(99200);
 		
 		StringArray outputZoneList = new StringArray();
-		outputZoneList.clear();
-		
 		StringArray outputVisualList = new StringArray();
-		//outputVisualList.clear();
+		Gain gain = new Gain();
 		
-		outputZoneList.add("Test");
 		//Testing zones
 		PaZoneArray paZoneList = new PaZoneArray();
 		PaZone zone = new PaZone(); 
 		
 		paZoneList = pac.getPaZones();
+		
+		//Testing playback from one zone at a time
 		for (int i=0; i < paZoneList.size(); i++) 
 		{
 			zone = paZoneList.get(i);
+			
 			if (zone.getId().contains("Test/Test"))
 			{
-				//outputZoneList.add(zone.getId());
-				System.out.println(zone.getId());
+				outputZoneList.clear(); //use one test zone at a time
+				outputZoneList.add(zone.getId());
+				pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0); //play to zone
+	
+				try { Thread.sleep(8000); }
+				catch (InterruptedException e) { }
 			}
 		}
 		
-		//Play out to all relevant zones
-		//sinkGain.setLevel(0);
-		Gain gain = new Gain();
-		String text = null;
+		//Test playback queuing multiple messages
 		
-		System.out.println("number of outputs " + outputZoneList.size() + "number of dictionary items " + dvaItems.size());
+		outputZoneList.clear();
+		outputZoneList.add("Test/Test1");
+		outputZoneList.add("Test/Test2");
 		
-		System.out.println(pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, text, false, false, 0, 0, 0));
+		pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0);
+		pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0);
+		pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0);
+		pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0);
 		
-		try { Thread.sleep(10000); }
+		try { Thread.sleep(30000); }
 		catch (InterruptedException e) { }
 		
+
 		as.disconnect(); 
 	}
 
