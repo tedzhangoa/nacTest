@@ -113,8 +113,6 @@ class NacTest
 		
 		//2. test dictionary changes on single item
 			
-			
-		//System.out.println("CXS dictionary version is: " + as.getDictionaryChangeset().isEmpty());
 		
 		//=====================================
         // Test basic device set-up attributes
@@ -205,9 +203,9 @@ class NacTest
 		sinkGain.setLevel(DEF_GAIN);
 		
 		System.out.println("Testing audio sinks and sources");
-		
+		/********************************************************************************
 		//Sources 
-		for(int a=0; a<=1; a++) 
+		for(int a=0; a<=1; a++) //2 iterations
 		{
 			paSourceList = pac.getPaSources(); //refresh source list to get new gains
 			
@@ -219,7 +217,7 @@ class NacTest
 					assertEquals(CURR_NAC_IP, paSource.getIpAddress());
 					if(paSource.getType().name().equals("NETSPIRE_ANALOG_INPUT")) //only count analog outs 
 					{
-						if (a==0) 
+						if (a==0) //first iteration, set gains
 						{
 							sourceCount++;
 							paSource.setGain(DEF_GAIN, true, false);
@@ -228,7 +226,7 @@ class NacTest
 							catch (InterruptedException e) { }		
 						}
 						else {
-							assertEquals(DEF_GAIN, paSource.getGain());
+							assertEquals(DEF_GAIN, paSource.getGain()); //second iteration, check gains
 						}
 					}
 				}
@@ -241,6 +239,8 @@ class NacTest
 		}
 		assertEquals(sourceCount, CONAC02_AOUT);
 		
+		System.out.println("Audio sources okay");
+		
 		//Sinks
 		for (int a=0; a<=1; a++) 
 		{
@@ -251,7 +251,7 @@ class NacTest
 				if(Integer.toString(paSink.getId()).contains(dest)) //partial matching device sinks
 				{
 					assertEquals(CURR_NAC_IP, paSink.getIpAddress()); //check IP of each sink against device IP
-					if (a==0) 
+					if (a==0)  //first iteration, set gains
 					{
 						sinkCount++;
 						paSink.setGain(sinkGain, true, false);
@@ -261,7 +261,7 @@ class NacTest
 					}
 					else 
 					{
-						assertEquals(DEF_GAIN, paSink.getGain().getLevel());
+						assertEquals(DEF_GAIN, paSink.getGain().getLevel()); //second iteration, check gains
 					}
 				}
 			}
@@ -272,8 +272,8 @@ class NacTest
 			}
 		}
 		assertEquals(sinkCount, CURR_DEV_SNK_COUNT);
-		
-		
+		System.out.println("Audio sinks okay");
+		********************************************************************************/
 		//=========================================
         // Test PA System - Announcement playback
         //=========================================
@@ -295,6 +295,8 @@ class NacTest
 		
 		paZoneList = pac.getPaZones();
 		
+		System.out.println("Testing PA zone play back");
+		
 		//Testing playback from one zone at a time
 		for (int i=0; i < paZoneList.size(); i++) 
 		{
@@ -305,9 +307,25 @@ class NacTest
 				outputZoneList.clear(); //use one test zone at a time
 				outputZoneList.add(zone.getId());
 				pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0); //play to zone
-	
-				try { Thread.sleep(8000); }
+				
+				try { Thread.sleep(1500); }
 				catch (InterruptedException e) { }
+				
+				if(Character.isDigit(zone.getId().charAt(9))) //for single sink zones
+				{
+					
+					paSinkList = zone.getMembers();
+					assertEquals(1, paSinkList.size()); 
+					
+					paSink = paSinkList.get(0);
+					
+					//check message is being played
+					assertEquals("FILE_PLAY", paSink.getAnnouncementType().name());
+					assertEquals("ACTIVE", paSink.getState().name());
+		
+					try { Thread.sleep(8000); }
+					catch (InterruptedException e) { }
+				}
 			}
 		}
 		
@@ -325,7 +343,12 @@ class NacTest
 		try { Thread.sleep(30000); }
 		catch (InterruptedException e) { }
 		
-
+		
+		
+		
+		
+		
+		System.out.println("All tests okay");
 		as.disconnect(); 
 	}
 
@@ -360,5 +383,19 @@ class NacTest
 	}
 	
 	
+	
+
+	
+	/*
+	 * Check audio zone/sink activity and announcement type during playback  
+	 * 
+	 * Muting/unmuting PA sinks 
+	 * 
+	 * Test announcement with analog input 
+	 * 
+	 * Playback using messages with different priorities
+	 * 
+	 * 
+	 */
 	
 }
