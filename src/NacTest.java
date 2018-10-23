@@ -47,7 +47,7 @@ class NacTest
 		
 		KeyValueMap connecParam = new KeyValueMap();	//config parameter 
 		
-		connecParam.set("NETSPIRE_SDK_SOCKET_PORT", "20000"); 
+		connecParam.set("NETSPIRE_SDK_SOCKET_PORT", "20005"); 
 		//connecParam.set("NETSPIRE_SDK_SET_LOG_LEVEL", "0");
 		
 		AudioServer as = new AudioServer();
@@ -131,7 +131,7 @@ class NacTest
 		assertEquals(DEV_CLASS, d.getDeviceClass().name());
 		
 		String dest = Integer.toString(d.getDstNo());	
-		assertEquals("2"+ CURR_NAC_LOC_ID + CURR_NAC_DEV_INDEX, Integer.toString(d.getDstNo()));
+		assertEquals("2"+ CURR_NAC_LOC_ID + CURR_NAC_DEV_INDEX, dest);
 		
 	//Check device attributes - against CXS
 		assertEquals(c.getDictionaryVersion(), d.getDictionaryVersion());
@@ -208,7 +208,7 @@ class NacTest
 		sinkGain.setLevel(DEF_GAIN);
 		
 		System.out.println("Testing audio sinks and sources");
-		/********************************************************************************
+		///********************************************************************************
 		//Sources 
 		for(int a=0; a<=1; a++) //2 iterations
 		{
@@ -278,7 +278,7 @@ class NacTest
 		}
 		assertEquals(sinkCount, CURR_DEV_SNK_COUNT);
 		System.out.println("Audio sinks okay");
-		********************************************************************************/	
+		//********************************************************************************/	
 		
 		//=========================================
         // Test PA System - Announcement playback
@@ -342,7 +342,8 @@ class NacTest
 		}
 		
 		//Test playback queuing multiple messages
-		/*
+		//how to confirm queuing works??
+		
 		System.out.println("Testing PA queued message play back");
 		
 		outputZoneList.clear();
@@ -356,16 +357,22 @@ class NacTest
 		
 		try { Thread.sleep(30000); }
 		catch (InterruptedException e) { }
-		*/
+		
+		
+		
+		//=========================================
+        // Test PA System - Live PA SW Trigger
+        //=========================================
 		
 		//Test playback using software trigger from an analog source
 		
 		System.out.println("Testing live PA software trigger play back");
 		
-		int sourceId = Integer.parseInt(Integer.toString(d.getDstNo()) + "01"); //use the first source
+		int sourceId = Integer.parseInt(dest + "01"); //use the first source
 		
 		pac.attachPaSource(sourceId); //attach
 		
+		paSourceList.clear();
 		paSourceList = pac.getPaSources();
 		
 		for(int i=0; i<paSourceList.size(); i++) //retrieve the first PA source 
@@ -382,25 +389,31 @@ class NacTest
 		paSource.attachPaZone("Test/TestAll", AttachMode.ADD_TO_EXISTING_SET); //attach zone with all sinks to source
 		
 		int swTrigId = pac.createSwPaTrigger(sourceId, 100);
+		
+		assertNotEquals(0,swTrigId);
+		
 		pac.activateSwPaTrigger(swTrigId);
 
 		try { Thread.sleep(10000); }
 		catch (InterruptedException e) { }
 		
+		paSinkList.clear();
 		paSinkList = allZone.getMembers();
 		
 		for (int i=0; i< paSinkList.size(); i++) { //ensure all sinks are active 
 			paSink = paSinkList.get(i);
-			assertEquals(AnnouncementType.VOIP_STREAMING, paSink.getAnnouncementType());
+			assertEquals(AnnouncementType.VOIP_STREAMING, paSink.getAnnouncementType()); //if fails restart NAC
 			assertEquals(State.ACTIVE, paSink.getState());
 		}
 		pac.deactivateSwPaTrigger(swTrigId);
 		pac.detachPaSource(sourceId);
 		
-		
-		
+
 		
 		System.out.println("All PA tets okay");
+		
+		
+		
 		
 		
 		
@@ -443,13 +456,10 @@ class NacTest
 
 	
 	/*
-	 * Check audio zone/sink activity and announcement type during playback  
-	 * 
 	 * Muting/unmuting PA sinks //SDK implementation incomplete
 	 * Muting/unmuting PA zones // '' 
 	 * 
 	 * Test attaching/detaching sources
-	 * Test announcement with analog input 
 	 * 
 	 * Playback using messages with different priorities
 	 * 
