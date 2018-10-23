@@ -1,6 +1,11 @@
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 import oa.as.*;
+import oa.as.PaSink.AnnouncementType;
+import oa.as.PaSink.MuteState;
+import oa.as.PaSink.State;
+import oa.as.PaSource.AttachMode;
+import oa.as.PaSource.AttachState;
 
 class NacTest 
 {
@@ -273,7 +278,8 @@ class NacTest
 		}
 		assertEquals(sinkCount, CURR_DEV_SNK_COUNT);
 		System.out.println("Audio sinks okay");
-		********************************************************************************/
+		********************************************************************************/	
+		
 		//=========================================
         // Test PA System - Announcement playback
         //=========================================
@@ -292,10 +298,11 @@ class NacTest
 		//Testing zones
 		PaZoneArray paZoneList = new PaZoneArray();
 		PaZone zone = new PaZone(); 
+		PaZone allZone = new PaZone();
 		
 		paZoneList = pac.getPaZones();
 		
-		System.out.println("Testing PA zone play back");
+		System.out.println("Testing PA single zone play back");
 		
 		//Testing playback from one zone at a time
 		for (int i=0; i < paZoneList.size(); i++) 
@@ -320,16 +327,23 @@ class NacTest
 					paSink = paSinkList.get(0);
 					
 					//check message is being played
-					assertEquals("FILE_PLAY", paSink.getAnnouncementType().name());
-					assertEquals("ACTIVE", paSink.getState().name());
+					assertEquals(AnnouncementType.FILE_PLAY, paSink.getAnnouncementType());
+					assertEquals(State.ACTIVE, paSink.getState());
 		
 					try { Thread.sleep(8000); }
 					catch (InterruptedException e) { }
 				}
 			}
+			
+			if (zone.getId().equals("Test/TestAll"))
+			{
+				allZone = zone; //save zone for all
+			}
 		}
 		
 		//Test playback queuing multiple messages
+		/*
+		System.out.println("Testing PA queued message play back");
 		
 		outputZoneList.clear();
 		outputZoneList.add("Test/Test1");
@@ -342,9 +356,51 @@ class NacTest
 		
 		try { Thread.sleep(30000); }
 		catch (InterruptedException e) { }
+		*/
+		
+		//Test playback using software trigger from an analog source
+		
+		System.out.println("Testing live PA software trigger play back");
+		
+		int sourceId = Integer.parseInt(Integer.toString(d.getDstNo()) + "01"); //use the first source
+		
+		pac.attachPaSource(sourceId); //attach
+		
+		paSourceList = pac.getPaSources();
+		
+		for(int i=0; i<paSourceList.size(); i++) //retrieve the first PA source 
+		{
+			paSource = paSourceList.get(i);
+			if (paSource.getId() == sourceId) 
+			{
+				break;
+			}
+		}
+		
+		assertEquals(AttachState.ATTACHED, paSource.getAttachState());
+		
+		paSource.attachPaZone("Test/TestAll", AttachMode.ADD_TO_EXISTING_SET); //attach zone with all sinks to source
+		
+		int swTrigId = pac.createSwPaTrigger(sourceId, 100);
+		pac.activateSwPaTrigger(swTrigId);
+
+		try { Thread.sleep(10000); }
+		catch (InterruptedException e) { }
+		
+		paSinkList = allZone.getMembers();
+		
+		for (int i=0; i< paSinkList.size(); i++) { //ensure all sinks are active 
+			paSink = paSinkList.get(i);
+			assertEquals(AnnouncementType.VOIP_STREAMING, paSink.getAnnouncementType());
+			assertEquals(State.ACTIVE, paSink.getState());
+		}
+		pac.deactivateSwPaTrigger(swTrigId);
+		pac.detachPaSource(sourceId);
 		
 		
 		
+		
+		System.out.println("All PA tets okay");
 		
 		
 		
@@ -389,13 +445,15 @@ class NacTest
 	/*
 	 * Check audio zone/sink activity and announcement type during playback  
 	 * 
-	 * Muting/unmuting PA sinks 
+	 * Muting/unmuting PA sinks //SDK implementation incomplete
+	 * Muting/unmuting PA zones // '' 
 	 * 
+	 * Test attaching/detaching sources
 	 * Test announcement with analog input 
 	 * 
 	 * Playback using messages with different priorities
 	 * 
-	 * 
+	 * Hardware triggers for source
 	 */
 	
 }
