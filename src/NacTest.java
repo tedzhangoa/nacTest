@@ -2,7 +2,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 import oa.as.*;
 import oa.as.PaSink.AnnouncementType;
-import oa.as.PaSink.MuteState;
 import oa.as.PaSink.State;
 import oa.as.PaSource.AttachMode;
 import oa.as.PaSource.AttachState;
@@ -124,6 +123,7 @@ class NacTest
         //=====================================
 		
 	//Check device attributes - pre-set attributes
+		System.out.println();
 		System.out.println("Checking device attributes");
 		assertEquals(CURR_NAC_LOC_ID,d.getLocationId()); 
 		assertEquals(CURR_NAC_DEV_INDEX, d.getDeviceIndex());
@@ -145,6 +145,7 @@ class NacTest
 		assertEquals(CONAC02_AOUT, m.getAudioOutputChannels());
 		
 		System.out.println("Device attributes okay");
+		System.out.println();
 		
 		//===========================
         // Test Digital input/output 
@@ -185,6 +186,7 @@ class NacTest
 		d = refreshDevice(as);
 		
 		System.out.println("Digital input/output okay");
+		System.out.println();
 		
 		//=====================================
         // Test PA System - Sources and Sinks
@@ -278,6 +280,7 @@ class NacTest
 		}
 		assertEquals(sinkCount, CURR_DEV_SNK_COUNT);
 		System.out.println("Audio sinks okay");
+		System.out.println();
 		//********************************************************************************/	
 		
 		//=========================================
@@ -309,7 +312,7 @@ class NacTest
 		{
 			zone = paZoneList.get(i);
 			
-			if (zone.getId().contains("Test/Test"))
+			if (zone.getId().contains("Test/Test")) //all local zones 
 			{
 				outputZoneList.clear(); //use one test zone at a time
 				outputZoneList.add(zone.getId());
@@ -333,6 +336,19 @@ class NacTest
 					try { Thread.sleep(8000); }
 					catch (InterruptedException e) { }
 				}
+				else //Test/TestAll 
+				{
+					paSinkList = zone.getMembers();
+					for(int j=0; j<paSinkList.size(); j++)  //all zones should be active
+					{
+						paSink = paSinkList.get(j);
+						assertEquals(AnnouncementType.FILE_PLAY, paSink.getAnnouncementType());
+						assertEquals(State.ACTIVE, paSink.getState());
+						
+						try { Thread.sleep(8000); }
+						catch (InterruptedException e) { }
+					}
+				}
 			}
 			
 			if (zone.getId().equals("Test/TestAll"))
@@ -342,18 +358,27 @@ class NacTest
 		}
 		
 		//Test playback queuing multiple messages
-		//how to confirm queuing works??
+		//how to confirm queuing works?? possibly queue to different output zones and test 
 		
 		System.out.println("Testing PA queued message play back");
 		
 		outputZoneList.clear();
 		outputZoneList.add("Test/Test1");
+		pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0);
+		outputZoneList.clear();
 		outputZoneList.add("Test/Test2");
+		pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0);
+		outputZoneList.clear();
+		outputZoneList.add("Test/Test3");
+		pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0);
+		outputZoneList.clear();
+		outputZoneList.add("Test/Test4");
+		pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0);
 		
-		pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0);
-		pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0);
-		pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0);
-		pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0);
+		//check playback in order of queuing 
+		
+		
+		
 		
 		try { Thread.sleep(30000); }
 		catch (InterruptedException e) { }
@@ -402,7 +427,7 @@ class NacTest
 		
 		for (int i=0; i< paSinkList.size(); i++) { //ensure all sinks are active 
 			paSink = paSinkList.get(i);
-			assertEquals(AnnouncementType.VOIP_STREAMING, paSink.getAnnouncementType()); //if fails restart NAC
+			assertEquals(AnnouncementType.VOIP_STREAMING, paSink.getAnnouncementType()); //if fails restart NAC, SW trigger hung
 			assertEquals(State.ACTIVE, paSink.getState());
 		}
 		pac.deactivateSwPaTrigger(swTrigId);
@@ -411,18 +436,12 @@ class NacTest
 
 		
 		System.out.println("All PA tets okay");
-		
-		
-		
-		
+		System.out.println();
 		
 		
 		System.out.println("All tests okay");
 		as.disconnect(); 
 	}
-
-	
-	
 	
 	
 	private Device refreshDevice (AudioServer as) 
