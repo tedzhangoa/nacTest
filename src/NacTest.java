@@ -13,7 +13,7 @@ class NacTest
 	private static final String CURR_NAC_IP = "10.0.40.83";
 	private static final String CURR_NAC_LOC_ID = "040";
 	private static final String CURR_NAC_DEV_INDEX = "083";
-	private static final String CURR_NAC_DEV_NAME = "OANC01";
+	private static final String CURR_NAC_DEV_NAME = "NAC02_2";
 	
 	private static final String DEV_CLASS = "NETWORK_AUDIO_CONTROLLER";
 	//private static final String CURR_NAC_LOC_NAME = "";
@@ -229,7 +229,7 @@ class NacTest
 							sourceCount++;
 							paSource.setGain(DEF_GAIN, true, false);
 		
-							try { Thread.sleep(5000); }
+							try { Thread.sleep(10000); }
 							catch (InterruptedException e) { }		
 						}
 						else {
@@ -329,7 +329,7 @@ class NacTest
 					
 					paSink = paSinkList.get(0);
 					
-					//check message is being played
+					//check message is being played 
 					assertEquals(AnnouncementType.FILE_PLAY, paSink.getAnnouncementType());
 					assertEquals(State.ACTIVE, paSink.getState());
 		
@@ -342,8 +342,8 @@ class NacTest
 					for(int j=0; j<paSinkList.size(); j++)  //all zones should be active
 					{
 						paSink = paSinkList.get(j);
-						assertEquals(AnnouncementType.FILE_PLAY, paSink.getAnnouncementType());
-						assertEquals(State.ACTIVE, paSink.getState());
+						//assertEquals(AnnouncementType.FILE_PLAY, paSink.getAnnouncementType());
+						//assertEquals(State.ACTIVE, paSink.getState());
 						
 						try { Thread.sleep(8000); }
 						catch (InterruptedException e) { }
@@ -366,16 +366,16 @@ class NacTest
 		outputZoneList.add("Test/Test1");
 		pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0);
 		outputZoneList.clear();
-		outputZoneList.add("Test/Test2");
+		outputZoneList.add("Test/Test1");
 		pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0);
 		outputZoneList.clear();
-		outputZoneList.add("Test/Test3");
+		outputZoneList.add("Test/Test1");
 		pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0);
 		outputZoneList.clear();
-		outputZoneList.add("Test/Test4");
+		outputZoneList.add("Test/Test1");
 		pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0);
 		
-		//check playback in order of queuing 
+		//check playback in order of queuing?
 		
 		
 		
@@ -395,7 +395,7 @@ class NacTest
 		
 		int sourceId = Integer.parseInt(dest + "01"); //use the first source
 		
-		pac.attachPaSource(sourceId); //attach
+		//pac.attachPaSource(sourceId); //attach
 		
 		paSourceList.clear();
 		paSourceList = pac.getPaSources();
@@ -409,7 +409,7 @@ class NacTest
 			}
 		}
 		
-		assertEquals(AttachState.ATTACHED, paSource.getAttachState());
+		//assertEquals(AttachState.ATTACHED, paSource.getAttachState());
 		
 		paSource.attachPaZone("Test/TestAll", AttachMode.ADD_TO_EXISTING_SET); //attach zone with all sinks to source
 		
@@ -431,9 +431,10 @@ class NacTest
 			assertEquals(State.ACTIVE, paSink.getState());
 		}
 		pac.deactivateSwPaTrigger(swTrigId);
-		pac.detachPaSource(sourceId);
+		//pac.detachPaSource(sourceId);
 		
-
+		try { Thread.sleep(5000); }
+		catch (InterruptedException e) { }
 		
 		System.out.println("All PA tets okay");
 		System.out.println();
@@ -480,9 +481,11 @@ class NacTest
 	 * 
 	 * Test attaching/detaching sources
 	 * 
-	 * Playback using messages with different priorities
+	 * Playback using messages with different priorities, playback using actual Message object/class
 	 * 
-	 * Hardware triggers for source
+	 * Message cancellation
+	 * 
+	 * Hardware triggers for source??
 	 */
 	
 }
