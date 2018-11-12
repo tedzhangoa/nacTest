@@ -1,5 +1,6 @@
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
+
 import oa.as.*;
 import oa.as.PaSink.AnnouncementType;
 import oa.as.PaSink.State;
@@ -8,6 +9,24 @@ import oa.as.PaSource.AttachState;
 
 class NacTest 
 {
+
+	//============================
+    // Device setup pre-requisites 
+    //============================
+	
+	/*
+	 *
+	 * 1. IP address		
+	 * 2. Device identification: location ID, device index, device name
+	 * 
+	 * 3. Audio zones: Test/Test1...Test/TestN for N local audio sinks
+	 * 4. Audio zone: Test/TestAll with all local sinks routed
+	 * 
+	 * 5. Microphone plugged in audio Input 1 for activating live PA
+	 * 
+	 */
+	 //============================
+	
 	//Current Device specific settings
 	private static final String CURR_CXS_IP = "10.1.40.100";
 	private static final String CURR_NAC_IP = "10.0.40.83";
@@ -25,7 +44,6 @@ class NacTest
 	private static final int CONAC02_AOUT = 4;
 	
 	//Number of sources and sinks
-	//private static final int CURR_DEV_SRC_COUNT = 5;
 	private static final int CURR_DEV_SNK_COUNT = 8;
 	
 	//Default gain
@@ -41,12 +59,14 @@ class NacTest
 		//Establish connection to CXS
 		
 		StringArray address = new StringArray();	//serverAddresses parameter
+		address.clear();
 		
 		address.add(CURR_CXS_IP);
 		
 		KeyValueMap connecParam = new KeyValueMap();	//config parameter 
+		connecParam.clear();
 		
-		connecParam.set("NETSPIRE_SDK_SOCKET_PORT", "20005"); 
+		connecParam.set("NETSPIRE_SDK_SOCKET_PORT", "20000"); 
 		//connecParam.set("NETSPIRE_SDK_SET_LOG_LEVEL", "0");
 		
 		AudioServer as = new AudioServer();
@@ -76,6 +96,7 @@ class NacTest
 		
 		while(true) 
 		{
+			devices.clear();
 			devices = as.getDeviceStates();
 			if (devices.size() > 0)
 			{
@@ -107,61 +128,57 @@ class NacTest
 			catch (InterruptedException e) { }
 		}
 		 
-		
-		
-	//Possible setup of device
-		
-		//1. test dictionary update
-			//initiate update through CXS
-			//check resultant dictionary version on device
-		
-		//2. test dictionary changes on single item
-			
-		
+
 		//=====================================
         // Test basic device set-up attributes
         //=====================================
 		
 	//Check device attributes - pre-set attributes
 		System.out.println();
-		System.out.println("Checking device attributes");
-		assertEquals(CURR_NAC_LOC_ID,d.getLocationId()); 
-		assertEquals(CURR_NAC_DEV_INDEX, d.getDeviceIndex());
-		assertEquals(CURR_NAC_DEV_NAME, d.getName());
-		assertEquals(DEV_CLASS, d.getDeviceClass().name());
+		System.out.println("Testing device attributes");
+		
+		System.out.println("	Pre-set attributes");
+		assertEquals(CURR_NAC_LOC_ID, d.getLocationId(), "Device Location ID incorrect"); 
+		assertEquals(CURR_NAC_DEV_INDEX, d.getDeviceIndex(), "Device Index incorrect");
+		assertEquals(CURR_NAC_DEV_NAME, d.getName(), "Device Name incorrect");
+		
 		
 		String dest = Integer.toString(d.getDstNo());	
-		assertEquals("2"+ CURR_NAC_LOC_ID + CURR_NAC_DEV_INDEX, dest);
+		assertEquals("2"+ CURR_NAC_LOC_ID + CURR_NAC_DEV_INDEX, dest, "Device Destination Number inconsistent ");
 		
-	//Check device attributes - against CXS
-		assertEquals(c.getDictionaryVersion(), d.getDictionaryVersion());
-		assertEquals(c.getSoftwareRevision(), d.getSoftwareRevision()); //assuming auto-updated
+	//Check software and dictionary consistency against CXS
+		System.out.println("	Dictionary and software consistency");
+		assertEquals(c.getDictionaryVersion(), d.getDictionaryVersion(), "Device Dictionary Version inconsistent");
+		assertEquals(c.getSoftwareRevision(), d.getSoftwareRevision(), "Device Software Revision inconsistent"); //assuming auto-updated
 		
-		
+		System.out.println("	Device model and class consistency");
+		assertEquals(DEV_CLASS, d.getDeviceClass().name(), "Device Class inconsistent");
 	//Check Device Model class 
-		assertEquals(CONAC02_MODEL, m.getName());
-		assertEquals(CONAC02_DIN, m.getDigitalInputCount());
-		assertEquals(CONAC02_DOUT, m.getDigitalOutputCount());
-		assertEquals(CONAC02_AOUT, m.getAudioOutputChannels());
+		assertEquals(CONAC02_MODEL, m.getName(), "Device Model Name inconsistent");
+		assertEquals(CONAC02_DIN, m.getDigitalInputCount(), "Digital Input count inconsistent");
+		assertEquals(CONAC02_DOUT, m.getDigitalOutputCount(), "Digitial Output count inconsistent");
+		assertEquals(CONAC02_AOUT, m.getAudioOutputChannels(), "Audio Output count inconsistent");
 		
-		System.out.println("Device attributes okay");
+		System.out.println("Device attributes pass");
 		System.out.println();
 		
 		//===========================
         // Test Digital input/output 
         //===========================
 		
-		System.out.println("Checking device digital input/output");
+		System.out.println("Testing device digital input/output");
 		//Digital inputs
+		System.out.println("	Digital input default state");
 		for(int i=1; i<= m.getDigitalInputCount(); i++) 
 		{
-			assertEquals(false, d.getInputState(i)); //should be un-set by default 
+			assertFalse(d.getInputState(i), "Digital Input number " + i +" default state not false"); //should be un-set by default 
 		}
 		
+		System.out.println("	Digital output default state");
 		//Set digital outputs
 		for(int i=1; i<=m.getDigitalOutputCount(); i++ ) 
 		{
-			assertEquals(false, d.getOutputState(i));
+			assertFalse(d.getOutputState(i), "Digital Output number "+ i + " default state not false");
 			d.setOutputState(i, 1);
 			try { Thread.sleep(300); }
 			catch (InterruptedException e) { }
@@ -171,21 +188,23 @@ class NacTest
 		catch (InterruptedException e) { }
 		d = refreshDevice(as); 
 
-		//Un-set digital outputs
+		System.out.println("	Digital output set state");
+		//Check and then un-set digital outputs
 		for(int i=1; i<=m.getDigitalOutputCount(); i++ ) 
 		{
-			assertEquals(true, d.getOutputState(i)); //confirm set successfully
+			assertTrue(d.getOutputState(i), "Digital Output number " + i + " not set to true"); //confirm set successfully
 			d.setOutputState(i, 2);
 			try { Thread.sleep(300); }
 			catch (InterruptedException e) { }
 		}
 		
+		System.out.println("	Digital output reset state");
 		//refresh device states
 		try { Thread.sleep(2000); }
 		catch (InterruptedException e) { }
 		d = refreshDevice(as);
 		
-		System.out.println("Digital input/output okay");
+		System.out.println("Digital input/output pass");
 		System.out.println();
 		
 		//=====================================
@@ -212,8 +231,10 @@ class NacTest
 		System.out.println("Testing audio sinks and sources");
 		///********************************************************************************
 		//Sources 
-		for(int a=0; a<=1; a++) //2 iterations
+		System.out.println("	Audio Source gain configuration");
+		for(int a=0; a<=1; a++) //2 iterations, one to set and one to check
 		{
+			paSourceList.clear();
 			paSourceList = pac.getPaSources(); //refresh source list to get new gains
 			
 			for(int i=0; i < paSourceList.size(); i++) 
@@ -221,7 +242,7 @@ class NacTest
 				paSource = paSourceList.get(i);
 				if(Integer.toString(paSource.getId()).contains(dest)) //partial matching device sources
 				{
-					assertEquals(CURR_NAC_IP, paSource.getIpAddress());
+					assertEquals(CURR_NAC_IP, paSource.getIpAddress(), "Audio Source ID " + paSource.getId() + "IP inconsistent with device");
 					if(paSource.getType().name().equals("NETSPIRE_ANALOG_INPUT")) //only count analog outs 
 					{
 						if (a==0) //first iteration, set gains
@@ -233,7 +254,7 @@ class NacTest
 							catch (InterruptedException e) { }		
 						}
 						else {
-							assertEquals(DEF_GAIN, paSource.getGain()); //second iteration, check gains
+							assertEquals(DEF_GAIN, paSource.getGain(), "Audio Source ID " + paSource.getId() + " gain not set correctly" ); //second iteration, check gains
 						}
 					}
 				}
@@ -245,19 +266,20 @@ class NacTest
 			}
 		}
 		assertEquals(sourceCount, CONAC02_AOUT);
+
 		
-		System.out.println("Audio sources okay");
-		
-		//Sinks
+		//Sinks	
+		System.out.println("	Audio Sink gain configuration");
 		for (int a=0; a<=1; a++) 
 		{
+			paSinkList.clear();
 			paSinkList = pac.getPaSinks(); //refresh sink list to get new gains
 			for (int i=0; i < paSinkList.size(); i++) 
 			{
 				paSink = paSinkList.get(i);
 				if(Integer.toString(paSink.getId()).contains(dest)) //partial matching device sinks
 				{
-					assertEquals(CURR_NAC_IP, paSink.getIpAddress()); //check IP of each sink against device IP
+					assertEquals(CURR_NAC_IP, paSink.getIpAddress(), "Audio Sink ID " + paSink.getId() + "IP inconsistent with device"); //check IP of each sink against device IP
 					if (a==0)  //first iteration, set gains
 					{
 						sinkCount++;
@@ -268,7 +290,7 @@ class NacTest
 					}
 					else 
 					{
-						assertEquals(DEF_GAIN, paSink.getGain().getLevel()); //second iteration, check gains
+						assertEquals(DEF_GAIN, paSink.getGain().getLevel(), "Audio Sink ID " + paSink.getId() + " gain not set correctly"); //second iteration, check gains
 					}
 				}
 			}
@@ -279,7 +301,7 @@ class NacTest
 			}
 		}
 		assertEquals(sinkCount, CURR_DEV_SNK_COUNT);
-		System.out.println("Audio sinks okay");
+		System.out.println("Audio input/output pass");
 		System.out.println();
 		//********************************************************************************/	
 		
@@ -296,6 +318,7 @@ class NacTest
 		
 		StringArray outputZoneList = new StringArray();
 		StringArray outputVisualList = new StringArray();
+		outputVisualList.clear(); //no visual zones used in this test
 		Gain gain = new Gain();
 		
 		//Testing zones
@@ -303,6 +326,7 @@ class NacTest
 		PaZone zone = new PaZone(); 
 		PaZone allZone = new PaZone();
 		
+		paZoneList.clear();
 		paZoneList = pac.getPaZones();
 		
 		System.out.println("Testing PA single zone play back");
@@ -318,16 +342,16 @@ class NacTest
 				outputZoneList.add(zone.getId());
 				pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0); //play to zone
 				
-				try { Thread.sleep(1500); }
+				try { Thread.sleep(500); }
 				catch (InterruptedException e) { }
 				
 				if(Character.isDigit(zone.getId().charAt(9))) //for single sink zones
 				{
-					
-					paSinkList = zone.getMembers();
+					paSinkList.clear();
+					paSinkList = zone.getMembers(); //reusing variable from before
 					assertEquals(1, paSinkList.size()); 
 					
-					paSink = paSinkList.get(0);
+					paSink = paSinkList.get(0); //should only be one 
 					
 					//check message is being played 
 					assertEquals(AnnouncementType.FILE_PLAY, paSink.getAnnouncementType());
@@ -338,16 +362,19 @@ class NacTest
 				}
 				else //Test/TestAll 
 				{
+					try { Thread.sleep(3000); } //some delay in multi-zone playback, before all zones are active
+					catch (InterruptedException e) { } //NOTE this may cause inconsistencies
+					
+					paSinkList.clear();
 					paSinkList = zone.getMembers();
 					for(int j=0; j<paSinkList.size(); j++)  //all zones should be active
 					{
 						paSink = paSinkList.get(j);
-						//assertEquals(AnnouncementType.FILE_PLAY, paSink.getAnnouncementType());
-						//assertEquals(State.ACTIVE, paSink.getState());
-						
-						try { Thread.sleep(8000); }
-						catch (InterruptedException e) { }
+						assertEquals(AnnouncementType.FILE_PLAY, paSink.getAnnouncementType());
+						assertEquals(State.ACTIVE, paSink.getState());
 					}
+					try { Thread.sleep(8000); }
+					catch (InterruptedException e) { }
 				}
 			}
 			
@@ -427,7 +454,7 @@ class NacTest
 		
 		for (int i=0; i< paSinkList.size(); i++) { //ensure all sinks are active 
 			paSink = paSinkList.get(i);
-			assertEquals(AnnouncementType.VOIP_STREAMING, paSink.getAnnouncementType()); //if fails restart NAC, SW trigger hung
+			assertEquals(AnnouncementType.VOIP_STREAMING, paSink.getAnnouncementType()); //if this fails, restart NAC; SW trigger hung
 			assertEquals(State.ACTIVE, paSink.getState());
 		}
 		pac.deactivateSwPaTrigger(swTrigId);
@@ -452,6 +479,7 @@ class NacTest
 		
 		while(true) 
 		{
+			devices.clear();
 			devices = as.getDeviceStates();
 			if (devices.size() > 0)// && !devices.get(0).getDeviceModel().getName().equals("Unknown")) 
 			{
