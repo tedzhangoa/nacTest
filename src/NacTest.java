@@ -265,7 +265,7 @@ class NacTest
 				catch (InterruptedException e) { }	
 			}
 		}
-		assertEquals(sourceCount, CONAC02_AOUT);
+		assertEquals(sourceCount, CONAC02_AOUT, "Total number of local sources inconsistent");
 
 		
 		//Sinks	
@@ -300,7 +300,7 @@ class NacTest
 				catch (InterruptedException e) { }	
 			}
 		}
-		assertEquals(sinkCount, CURR_DEV_SNK_COUNT);
+		assertEquals(sinkCount, CURR_DEV_SNK_COUNT, "Total number of local sinks inconsistent");
 		System.out.println("Audio input/output pass");
 		System.out.println();
 		//********************************************************************************/	
@@ -329,7 +329,8 @@ class NacTest
 		paZoneList.clear();
 		paZoneList = pac.getPaZones();
 		
-		System.out.println("Testing PA single zone play back");
+		System.out.println("Testing audio playback functionality");
+		System.out.println("	PA single zone play back");
 		
 		//Testing playback from one zone at a time
 		for (int i=0; i < paZoneList.size(); i++) 
@@ -342,64 +343,64 @@ class NacTest
 				outputZoneList.add(zone.getId());
 				pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0); //play to zone
 				
-				try { Thread.sleep(500); }
+				try { Thread.sleep(3000); }
 				catch (InterruptedException e) { }
 				
 				if(Character.isDigit(zone.getId().charAt(9))) //for single sink zones
 				{
 					paSinkList.clear();
 					paSinkList = zone.getMembers(); //reusing variable from before
-					assertEquals(1, paSinkList.size()); 
+					assertEquals(1, paSinkList.size(), "Single zone set-up incorrect, zone " + zone.getId() + " has size > 1"); 
 					
 					paSink = paSinkList.get(0); //should only be one 
 					
 					//check message is being played 
-					assertEquals(AnnouncementType.FILE_PLAY, paSink.getAnnouncementType());
-					assertEquals(State.ACTIVE, paSink.getState());
-		
+					assertEquals(State.ACTIVE, paSink.getState(), "Single zone file playback at sink " + paSink.getId() + " not active");
+					assertEquals(AnnouncementType.FILE_PLAY, paSink.getAnnouncementType(),  "Single zone file playback at sink " + paSink.getId() + " announcement type incorrect");
+					
 					try { Thread.sleep(8000); }
 					catch (InterruptedException e) { }
 				}
 				else //Test/TestAll 
 				{
-					try { Thread.sleep(3000); } //some delay in multi-zone playback, before all zones are active
-					catch (InterruptedException e) { } //NOTE this may cause inconsistencies
+					//try { Thread.sleep(3000); } //some delay in multi-zone playback, before all zones are active
+					//catch (InterruptedException e) { } //NOTE this may cause inconsistencies
 					
 					paSinkList.clear();
 					paSinkList = zone.getMembers();
 					for(int j=0; j<paSinkList.size(); j++)  //all zones should be active
 					{
 						paSink = paSinkList.get(j);
-						assertEquals(AnnouncementType.FILE_PLAY, paSink.getAnnouncementType());
-						assertEquals(State.ACTIVE, paSink.getState());
+						assertEquals(State.ACTIVE, paSink.getState(), "Multiple zone file playback at sink " + paSink.getId() + " not active");
+						assertEquals(AnnouncementType.FILE_PLAY, paSink.getAnnouncementType(), "Multiple zone file playback at sink " + paSink.getId() + " announcement type incorrect");
 					}
 					try { Thread.sleep(8000); }
 					catch (InterruptedException e) { }
+					
+					allZone = zone; //save zone for all
 				}
-			}
-			
-			if (zone.getId().equals("Test/TestAll"))
-			{
-				allZone = zone; //save zone for all
 			}
 		}
 		
 		//Test playback queuing multiple messages
 		//how to confirm queuing works?? possibly queue to different output zones and test 
 		
-		System.out.println("Testing PA queued message play back");
+		System.out.println("	PA queued message play back");
 		
 		outputZoneList.clear();
 		outputZoneList.add("Test/Test1");
 		pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0);
-		outputZoneList.clear();
-		outputZoneList.add("Test/Test1");
+		try { Thread.sleep(1000); }
+		catch (InterruptedException e) { }
+		outputZoneList.add("Test/Test2");
 		pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0);
-		outputZoneList.clear();
-		outputZoneList.add("Test/Test1");
+		try { Thread.sleep(1000); }
+		catch (InterruptedException e) { }
+		outputZoneList.add("Test/Test3");
 		pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0);
-		outputZoneList.clear();
-		outputZoneList.add("Test/Test1");
+		try { Thread.sleep(1000); }
+		catch (InterruptedException e) { }
+		outputZoneList.add("Test/Test4");
 		pac.playMessage(outputZoneList, outputVisualList, gain, dvaItems, null, false, false, 0, 0, 0);
 		
 		//check playback in order of queuing?
@@ -418,13 +419,11 @@ class NacTest
 		
 		//Test playback using software trigger from an analog source
 		
-		System.out.println("Testing live PA software trigger play back");
+		System.out.println("	Live PA software trigger play back");
 		
-		int sourceId = Integer.parseInt(dest + "01"); //use the first source
+		int sourceId = Integer.parseInt(dest + "01"); //use the first source for input
 		
-		//pac.attachPaSource(sourceId); //attach
-		
-		paSourceList.clear();
+		paSourceList.clear(); //reuse variable
 		paSourceList = pac.getPaSources();
 		
 		for(int i=0; i<paSourceList.size(); i++) //retrieve the first PA source 
@@ -436,13 +435,11 @@ class NacTest
 			}
 		}
 		
-		//assertEquals(AttachState.ATTACHED, paSource.getAttachState());
-		
 		paSource.attachPaZone("Test/TestAll", AttachMode.ADD_TO_EXISTING_SET); //attach zone with all sinks to source
 		
 		int swTrigId = pac.createSwPaTrigger(sourceId, 100);
 		
-		assertNotEquals(0,swTrigId);
+		assertNotEquals(0,swTrigId, "Soft PA Trigger creation failed");
 		
 		pac.activateSwPaTrigger(swTrigId);
 
@@ -454,21 +451,23 @@ class NacTest
 		
 		for (int i=0; i< paSinkList.size(); i++) { //ensure all sinks are active 
 			paSink = paSinkList.get(i);
-			assertEquals(AnnouncementType.VOIP_STREAMING, paSink.getAnnouncementType()); //if this fails, restart NAC; SW trigger hung
-			assertEquals(State.ACTIVE, paSink.getState());
+			assertEquals(State.ACTIVE, paSink.getState(), "Software trigger live playback at sink " + paSink.getId() + " not active");
+			assertEquals(AnnouncementType.VOIP_STREAMING, paSink.getAnnouncementType(), "Software trigger live playback at sink " + paSink.getId() + " announcement type incorrect"); //if this fails, restart NAC; SW trigger hung
 		}
 		pac.deactivateSwPaTrigger(swTrigId);
-		//pac.detachPaSource(sourceId);
 		
 		try { Thread.sleep(5000); }
 		catch (InterruptedException e) { }
 		
-		System.out.println("All PA tets okay");
+		System.out.println("PA systems pass");
 		System.out.println();
 		
 		
 		System.out.println("All tests okay");
+		System.out.println();
+		
 		as.disconnect(); 
+		System.out.println("Disconnection success");
 	}
 	
 	
