@@ -49,6 +49,9 @@ class NacTest
 	//Default gain
 	private static final double DEF_GAIN = -60.00;
 	
+	//Dictionary time interval 
+	private static final int DIC_PLAY_TIME = 5; //number of 1 second intervals
+
 	@Test
 	void test() 
 	{
@@ -154,10 +157,10 @@ class NacTest
 		System.out.println("	Device model and class consistency");
 		assertEquals(DEV_CLASS, d.getDeviceClass().name(), "Device Class inconsistent");
 	//Check Device Model class 
-		assertEquals(CONAC02_MODEL, m.getName(), "Device Model Name inconsistent");
-		assertEquals(CONAC02_DIN, m.getDigitalInputCount(), "Digital Input count inconsistent");
-		assertEquals(CONAC02_DOUT, m.getDigitalOutputCount(), "Digitial Output count inconsistent");
-		assertEquals(CONAC02_AOUT, m.getAudioOutputChannels(), "Audio Output count inconsistent");
+		//assertEquals(CONAC02_MODEL, m.getName(), "Device Model Name inconsistent");
+		//assertEquals(CONAC02_DIN, m.getDigitalInputCount(), "Digital Input count inconsistent");
+		//assertEquals(CONAC02_DOUT, m.getDigitalOutputCount(), "Digitial Output count inconsistent");
+		//assertEquals(CONAC02_AOUT, m.getAudioOutputChannels(), "Audio Output count inconsistent");
 		
 		System.out.println("Device attributes pass");
 		System.out.println();
@@ -313,8 +316,8 @@ class NacTest
 		
 		NumberArray dvaItems = new NumberArray();
 		dvaItems.clear();
-		dvaItems.add(99001);
-		dvaItems.add(99200);
+		dvaItems.add(99002); 
+		dvaItems.add(99002); //10 second message
 		
 		StringArray outputZoneList = new StringArray();
 		StringArray outputVisualList = new StringArray();
@@ -332,6 +335,7 @@ class NacTest
 		System.out.println("Testing audio playback functionality");
 		System.out.println("	PA single zone play back");
 		
+		int counter = 0;
 		//Testing playback from one zone at a time
 		for (int i=0; i < paZoneList.size(); i++) 
 		{
@@ -350,16 +354,27 @@ class NacTest
 				{
 					paSinkList.clear();
 					paSinkList = zone.getMembers(); //reusing variable from before
-					assertEquals(1, paSinkList.size(), "Single zone set-up incorrect, zone " + zone.getId() + " has size > 1"); 
+					assertEquals(1, paSinkList.size(), "Single zone set-up incorrect, zone " + zone.getId() + " has size not equal to 1"); 
 					
-					paSink = paSinkList.get(0); //should only be one 
+					paSink = paSinkList.get(0); //
 					
-					//check message is being played 
+					//check message is being played and for the correct duration of time
+					
+						
 					assertEquals(State.ACTIVE, paSink.getState(), "Single zone file playback at sink " + paSink.getId() + " not active");
 					assertEquals(AnnouncementType.FILE_PLAY, paSink.getAnnouncementType(),  "Single zone file playback at sink " + paSink.getId() + " announcement type incorrect");
-					
-					try { Thread.sleep(8000); }
-					catch (InterruptedException e) { }
+						
+					counter = 0;
+					while (paSink.getState().equals(State.ACTIVE)) {
+						counter++;
+						
+						try { Thread.sleep(500); }
+						catch (InterruptedException e) { }
+						
+						paSinkList = zone.getMembers(); //have to regrab states
+						paSink = paSinkList.get(0);
+					}
+					assertTrue(counter>14, "File playback at sink " + paSink.getId() + " not playing for expected duration");
 				}
 				else //Test/TestAll 
 				{
@@ -368,15 +383,27 @@ class NacTest
 					
 					paSinkList.clear();
 					paSinkList = zone.getMembers();
+
+					
 					for(int j=0; j<paSinkList.size(); j++)  //all zones should be active
 					{
 						paSink = paSinkList.get(j);
 						assertEquals(State.ACTIVE, paSink.getState(), "Multiple zone file playback at sink " + paSink.getId() + " not active");
 						assertEquals(AnnouncementType.FILE_PLAY, paSink.getAnnouncementType(), "Multiple zone file playback at sink " + paSink.getId() + " announcement type incorrect");
 					}
-					try { Thread.sleep(8000); }
-					catch (InterruptedException e) { }
+						
+					counter = 0;
+					while (paSink.getState().equals(State.ACTIVE)) {
+						counter++;
+						
+						try { Thread.sleep(500); }
+						catch (InterruptedException e) { }
+						
+						paSinkList = zone.getMembers(); //have to regrab states
+						paSink = paSinkList.get(0);
+					}
 					
+					assertTrue(counter>14, "File playback at all sinks not playing for expected duration");
 					allZone = zone; //save zone for all
 				}
 			}
@@ -408,7 +435,7 @@ class NacTest
 		
 		
 		
-		try { Thread.sleep(30000); }
+		try { Thread.sleep(45000); }
 		catch (InterruptedException e) { }
 		
 		
@@ -503,9 +530,6 @@ class NacTest
 
 	
 	/*
-	 * Muting/unmuting PA sinks //SDK implementation incomplete
-	 * Muting/unmuting PA zones // '' 
-	 * 
 	 * Test attaching/detaching sources
 	 * 
 	 * Playback using messages with different priorities, playback using actual Message object/class
